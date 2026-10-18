@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Voyage">
+<meta name="apple-mobile-web-app-title" content="USA Baby">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#FBF6EE">
 <link rel="apple-touch-icon" href="icon.png">
-<title>Notre voyage</title>
+<title>USA Baby</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -52,6 +52,13 @@ input,select{font:inherit;color:var(--ink);padding:12px 14px;border:1px solid va
 .login{padding:70px 24px;display:grid;gap:12px;text-align:center}
 .off{display:none;margin:4px 16px 0;padding:6px 12px;border-radius:14px;background:var(--butter);font-size:.8rem;text-align:center}
 body.offline .off{display:block}
+.tabs{display:flex;gap:6px;margin:8px 16px 0;padding:4px;background:#F1E9DD;border-radius:18px}
+.tabs button{flex:1;border:0;background:none;font:inherit;font-weight:700;color:var(--mut);padding:9px;border-radius:14px}
+.tabs .on{background:#FFFDF9;color:var(--ink);box-shadow:0 2px 8px #b9a58d26}
+.tl.st li{grid-template-columns:28px 1fr 34px}
+.gh{margin:18px 20px 8px}
+.gh span{display:inline-block;padding:4px 14px;border-radius:14px;font-size:.95rem}
+.btn.alt{background:var(--sky);flex:none}
 </style>
 </head>
 <body>
@@ -88,15 +95,15 @@ const SEED=[
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const kind=c=>/Paris/.test(c)?"rose":/Sturbridge/.test(c)?"butter":/Boston/.test(c)?"sky":"lav";
-const where=c=>/Sturbridge/.test(c)?"Sturbridge MA":/Boston/.test(c)?"Boston":"New York";
-const map=q=>"https://maps.apple.com/?q="+encodeURIComponent(q);
+const gm=q=>/^https?:\/\//.test(q)?q:"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q);
 const ymd=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const dt=id=>new Date(id+"T12:00");
 const fmt=id=>dt(id).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
 const tm=t=>{const x=/^(\d{1,2})h(\d{2})?$/.exec(t||"");return x?+x[1]*60+(+x[2]||0):null};
 
 const ok=!CFG.apiKey.startsWith("COLLE");
-let auth,db,user=null,days={},acts=[],sel=null,fromCache=true,err="",offs=[];
+let auth,db,user=null,days={},acts=[],todo=[],view="plan",wx={},wDone=false,sel=null,fromCache=true,err="",offs=[];
+try{wx=JSON.parse(localStorage.getItem("wx")||"{}")}catch(e){}
 
 function pick(){
   if(sel&&days[sel])return;
@@ -108,29 +115,78 @@ function draw(){
   const A=$("#app");
   if(!ok){A.innerHTML='<div class="login"><h1>Presque prêt</h1><p>Colle ta config Firebase en haut du fichier index.html.</p></div>';return}
   if(!user){
-    A.innerHTML='<form class="login" id="lg"><h1>Notre voyage</h1><p>Connecte-toi pour retrouver le planning.</p><input type="email" name="e" placeholder="Email" required autocomplete="username"><input type="password" name="p" placeholder="Mot de passe" required autocomplete="current-password"><button class="btn">Se connecter</button><p id="msg"></p></form>';
+    A.innerHTML='<form class="login" id="lg"><h1>USA Baby</h1><p>Connecte-toi pour retrouver le planning.</p><input type="email" name="e" placeholder="Email" required autocomplete="username"><input type="password" name="p" placeholder="Mot de passe" required autocomplete="current-password"><button class="btn">Se connecter</button><p id="msg"></p></form>';
     return;
   }
-  const head='<header><div><small>Boston, Sturbridge, New York</small><h1>Notre voyage</h1></div><button id="out" title="Se déconnecter">⎋</button></header><div class="off">Hors ligne : tes ajouts seront synchronisés au retour du réseau.</div>';
-  const ids=Object.keys(days).sort();
+  const head='<header><div><small>From Boston to New York</small><h1>USA Baby</h1></div><button id="out" title="Se déconnecter">⎋</button></header><div class="off">Hors ligne : tes ajouts seront synchronisés au retour du réseau.</div><div class="tabs"><button data-v="plan" class="'+(view==="plan"?"on":"")+'">Planning</button><button data-v="stuff" class="'+(view==="stuff"?"on":"")+'">Stuff to do</button></div>';
   const banner=err?'<p class="empty">⚠️ '+esc(err)+'</p>':"";
+  const fab='<button class="fab" id="add" aria-label="Ajouter">+</button>';
+  if(view==="stuff"){A.innerHTML=head+banner+stuffHTML()+fab;return}
+  const ids=Object.keys(days).sort();
   if(!ids.length){
     A.innerHTML=head+banner+(fromCache?'<p class="empty">Chargement…</p>':'<div class="login"><p>Ton planning est vide.</p><button class="btn" id="imp">Importer le planning</button></div>');
     return;
   }
   const sx=$(".strip")?.scrollLeft,today=ymd(new Date()),d=days[sel];
   const list=acts.filter(a=>a.date===sel).sort((a,b)=>(a.m??0)-(b.m??0));
+  const w=wx[wloc(d.city)]?.[sel],wm=w&&wmo(w.c);
+  const wtxt=w?wm[0]+" "+wm[1]+" · "+Math.round(w.h)+"° / "+Math.round(w.l)+"°"+(w.p!=null?" · 💧 "+w.p+"%":""):"";
   const chips=ids.map(id=>'<button class="chip '+kind(days[id].city)+(id===sel?" on":"")+'" data-d="'+id+'"><small>'+dt(id).toLocaleDateString("fr-FR",{weekday:"short"})+'</small><b>'+dt(id).getDate()+'</b>'+(id===today?"<i></i>":"")+'</button>').join("");
-  const rows=list.map(a=>'<li class="'+(a.done?"done":"")+'"><button class="ck" data-k="'+a.id+'" aria-label="Fait"></button><div class="t">'+(esc(a.t)||"·")+'</div><div class="b" data-e="'+a.id+'"><b>'+esc(a.title)+'</b>'+(a.note?'<span>'+esc(a.note)+'</span>':"")+'</div><a class="go" href="'+map((a.place||a.title)+" "+where(d.city))+'" aria-label="Itinéraire">📍</a></li>').join("");
-  A.innerHTML=head+banner+'<nav class="strip">'+chips+'</nav><section class="hero '+kind(d.city)+'"><small>'+fmt(sel)+'</small><h2>'+esc(d.city)+'</h2>'+(d.transport?'<p class="pill">🚌 '+esc(d.transport)+'</p>':"")+(d.lodging?'<a class="stay" href="'+map(d.lodging)+'">🏡 '+esc(d.lodging)+'</a>':"")+'</section>'+(rows?'<ul class="tl">'+rows+'</ul>':'<p class="empty">Rien de prévu ce jour-là. Appuie sur + pour ajouter une activité.</p>')+'<button class="fab" id="add" aria-label="Ajouter une activité">+</button>';
+  const rows=list.map(a=>'<li class="'+(a.done?"done":"")+'"><button class="ck" data-k="'+a.id+'" aria-label="Fait"></button><div class="t">'+(esc(a.t)||"·")+'</div><div class="b" data-e="'+a.id+'"><b>'+esc(a.title)+'</b>'+(a.note?'<span>'+esc(a.note)+'</span>':"")+'</div>'+(a.place?'<a class="go" href="'+gm(a.place)+'" target="_blank" rel="noopener" aria-label="Google Maps">📍</a>':"<span></span>")+'</li>').join("");
+  A.innerHTML=head+banner+'<nav class="strip">'+chips+'</nav><section class="hero '+kind(d.city)+'"><small>'+fmt(sel)+'</small><h2>'+esc(d.city)+'</h2>'+(wtxt?'<p class="pill">'+wtxt+'</p>':"")+(d.transport?'<p class="pill">🚌 '+esc(d.transport)+'</p>':"")+(d.lodging?'<a class="stay" href="'+gm(d.lodging)+'" target="_blank" rel="noopener">🏡 '+esc(d.lodging)+'</a>':"")+'</section>'+(rows?'<ul class="tl">'+rows+'</ul>':'<p class="empty">Rien de prévu ce jour-là. Appuie sur + pour ajouter une activité.</p>')+fab;
   const st=$(".strip");
   if(sx!=null)st.scrollLeft=sx;else $(".chip.on")?.scrollIntoView({inline:"center",block:"nearest"});
 }
 
-function sheet(a){
-  const ids=Object.keys(days).sort(),x=tm(a?.t);
+function stuffHTML(){
+  const out=[["Boston","sky"],["New York","lav"],["Ailleurs","butter"]].map(([g,k])=>{
+    const L=todo.filter(t=>(t.city||"Ailleurs")===g).sort((a,b)=>(a.ts??0)-(b.ts??0));
+    if(!L.length)return"";
+    return '<h3 class="gh"><span class="'+k+'">'+g+'</span></h3><ul class="tl st">'+L.map(t=>'<li class="'+(t.done?"done":"")+'"><button class="ck" data-tk="'+t.id+'" aria-label="Fait"></button><div class="b" data-te="'+t.id+'"><b>'+esc(t.title)+'</b>'+(t.note?'<span>'+esc(t.note)+'</span>':"")+'</div>'+(t.place?'<a class="go" href="'+gm(t.place)+'" target="_blank" rel="noopener" aria-label="Google Maps">📍</a>':"<span></span>")+'</li>').join("")+'</ul>';
+  }).join("");
+  return out||'<p class="empty">Aucune idée pour l\'instant. Appuie sur + pour noter un lieu à caser si vous avez du temps.</p>';
+}
+
+function tsheet(t){
+  const dflt=t?.city||(/Boston/.test(days[sel]?.city||"")?"Boston":"New York");
+  $("#sheet").innerHTML='<div class="ov" id="ov"><form class="sh" id="f"><h3>'+(t?"Modifier l'idée":"Nouvelle idée")+'</h3><input name="title" placeholder="Quoi ? (ex. Brooklyn Bridge)" required value="'+esc(t?.title)+'"><select name="city">'+["Boston","New York","Ailleurs"].map(c=>'<option'+(c===dflt?" selected":"")+'>'+c+'</option>').join("")+'</select><input name="place" placeholder="Adresse ou lien Google Maps" value="'+esc(t?.place)+'"><input name="note" placeholder="Note ou lien" value="'+esc(t?.note)+'"><div class="row"><button class="ok">Enregistrer</button>'+(t?'<button type="button" class="del" id="del">Supprimer</button>':"")+'</div>'+(t?'<button type="button" class="btn alt" id="plan">Caser dans le planning</button>':"")+'</form></div>';
+  const close=()=>$("#sheet").innerHTML="";
+  $("#ov").onclick=e=>{if(e.target.id==="ov")close()};
+  if(t){
+    $("#del").onclick=()=>{if(confirm("Supprimer cette idée ?")){deleteDoc(doc(db,"todo",t.id));close()}};
+    $("#plan").onclick=()=>sheet(null,{title:t.title,place:t.place,note:t.note,from:t.id});
+  }
+  $("#f").onsubmit=e=>{
+    e.preventDefault();
+    const v=Object.fromEntries(new FormData(e.target));
+    const data={title:v.title.trim(),city:v.city,place:v.place.trim(),note:v.note.trim(),done:t?.done||false,ts:t?.ts||Date.now()};
+    if(t)setDoc(doc(db,"todo",t.id),data);else setDoc(doc(collection(db,"todo")),data);
+    close();
+  };
+}
+
+const LOC={Boston:[42.36,-71.06],Sturbridge:[42.11,-72.08],"New York":[40.71,-74.01],Paris:[48.85,2.35]};
+const wloc=c=>{const l=c.split("→").pop();return /Boston/.test(l)?"Boston":/Sturbridge/.test(l)?"Sturbridge":/Paris/.test(l)?"Paris":"New York"};
+const wmo=c=>c===0?["☀️","Dégagé"]:c<3?["🌤️","Éclaircies"]:c===3?["☁️","Couvert"]:c<50?["🌫️","Brouillard"]:c<60?["🌦️","Bruine"]:c<70?["🌧️","Pluie"]:c<80?["❄️","Neige"]:c<85?["🌦️","Averses"]:c<90?["🌨️","Averses de neige"]:["⛈️","Orage"];
+async function weather(){
+  if(!navigator.onLine)return;
+  for(const k of new Set(Object.values(days).map(d=>wloc(d.city)))){
+    try{
+      const [la,lo]=LOC[k];
+      const j=await(await fetch("https://api.open-meteo.com/v1/forecast?latitude="+la+"&longitude="+lo+"&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=16")).json();
+      const o={};
+      j.daily.time.forEach((t,i)=>o[t]={c:j.daily.weather_code[i],h:j.daily.temperature_2m_max[i],l:j.daily.temperature_2m_min[i],p:j.daily.precipitation_probability_max[i]});
+      wx[k]=o;
+    }catch(e){}
+  }
+  try{localStorage.setItem("wx",JSON.stringify(wx))}catch(e){}
+  draw();
+}
+
+function sheet(a,pre){
+  const src=a||pre||{},ids=Object.keys(days).sort(),x=tm(a?.t);
   const tv=x!=null?String(Math.floor(x/60)).padStart(2,"0")+":"+String(x%60).padStart(2,"0"):"";
-  $("#sheet").innerHTML='<div class="ov" id="ov"><form class="sh" id="f"><h3>'+(a?"Modifier l'activité":"Nouvelle activité")+'</h3><input name="title" placeholder="Titre" required value="'+esc(a?.title)+'"><select name="date">'+ids.map(id=>'<option value="'+id+'"'+(id===(a?.date||sel)?" selected":"")+'>'+fmt(id)+'</option>').join("")+'</select><div class="row"><input type="time" name="time" value="'+tv+'"><input name="place" placeholder="Lieu (pour la carte)" value="'+esc(a?.place)+'"></div><input name="note" placeholder="Note ou lien" value="'+esc(a?.note)+'"><div class="row"><button class="ok">Enregistrer</button>'+(a?'<button type="button" class="del" id="del">Supprimer</button>':"")+'</div></form></div>';
+  $("#sheet").innerHTML='<div class="ov" id="ov"><form class="sh" id="f"><h3>'+(a?"Modifier l'activité":"Nouvelle activité")+'</h3><input name="title" placeholder="Titre" required value="'+esc(src.title)+'"><select name="date">'+ids.map(id=>'<option value="'+id+'"'+(id===(a?.date||sel)?" selected":"")+'>'+fmt(id)+'</option>').join("")+'</select><input type="time" name="time" value="'+tv+'"><input name="place" placeholder="Adresse ou lien Google Maps" value="'+esc(src.place)+'"><input name="note" placeholder="Note ou lien" value="'+esc(src.note)+'"><div class="row"><button class="ok">Enregistrer</button>'+(a?'<button type="button" class="del" id="del">Supprimer</button>':"")+'</div></form></div>';
   const close=()=>$("#sheet").innerHTML="";
   $("#ov").onclick=e=>{if(e.target.id==="ov")close()};
   if(a)$("#del").onclick=()=>{if(confirm("Supprimer cette activité ?")){deleteDoc(doc(db,"acts",a.id));close()}};
@@ -141,8 +197,8 @@ function sheet(a){
     if(v.time){const[h,mi]=v.time.split(":");t=+h+"h"+(mi==="00"?"":mi);m=+h*60+ +mi}
     else if(m==null){m=Math.max(480,...acts.filter(z=>z.date===v.date).map(z=>z.m??0))+1}
     const data={title:v.title.trim(),date:v.date,t,m,place:v.place.trim(),note:v.note.trim(),done:a?.done||false};
-    if(a)setDoc(doc(db,"acts",a.id),data);else setDoc(doc(collection(db,"acts")),data);
-    sel=v.date;close();draw();
+    if(a)setDoc(doc(db,"acts",a.id),data);else{setDoc(doc(collection(db,"acts")),data);if(pre?.from)deleteDoc(doc(db,"todo",pre.from))}
+    sel=v.date;view="plan";close();draw();
   };
 }
 
@@ -158,17 +214,21 @@ function seed(){
 
 function listen(){
   const fail=e=>{err=e.code==="permission-denied"?"Accès refusé : vérifie les règles Firestore et ton compte.":e.message;draw()};
-  offs.push(onSnapshot(collection(db,"days"),s=>{days={};s.forEach(d=>days[d.id]=d.data());fromCache=s.metadata.fromCache;err="";pick();draw()},fail));
+  offs.push(onSnapshot(collection(db,"days"),s=>{days={};s.forEach(d=>days[d.id]=d.data());fromCache=s.metadata.fromCache;err="";pick();draw();if(!wDone&&Object.keys(days).length){wDone=true;weather()}},fail));
   offs.push(onSnapshot(collection(db,"acts"),s=>{acts=s.docs.map(d=>({id:d.id,...d.data()}));draw()},fail));
+  offs.push(onSnapshot(collection(db,"todo"),s=>{todo=s.docs.map(d=>({id:d.id,...d.data()}));draw()},fail));
 }
 
 $("#app").onclick=e=>{
-  const c=e.target.closest("[data-d],[data-k],[data-e],#add,#out,#imp");
+  const c=e.target.closest("[data-d],[data-k],[data-e],[data-v],[data-tk],[data-te],#add,#out,#imp");
   if(!c)return;
   if(c.dataset.d){sel=c.dataset.d;draw()}
   else if(c.dataset.k){const a=acts.find(x=>x.id===c.dataset.k);updateDoc(doc(db,"acts",a.id),{done:!a.done})}
   else if(c.dataset.e)sheet(acts.find(x=>x.id===c.dataset.e));
-  else if(c.id==="add")sheet(null);
+  else if(c.dataset.v){view=c.dataset.v;draw()}
+  else if(c.dataset.tk){const t=todo.find(x=>x.id===c.dataset.tk);updateDoc(doc(db,"todo",t.id),{done:!t.done})}
+  else if(c.dataset.te)tsheet(todo.find(x=>x.id===c.dataset.te));
+  else if(c.id==="add")view==="stuff"?tsheet(null):sheet(null);
   else if(c.id==="out")signOut(auth);
   else if(c.id==="imp"){c.disabled=true;seed().catch(er=>{err=er.message;draw()})}
 };
@@ -179,13 +239,13 @@ $("#app").onsubmit=e=>{
 };
 
 const net=()=>document.body.classList.toggle("offline",!navigator.onLine);
-addEventListener("online",net);addEventListener("offline",net);net();
+addEventListener("online",()=>{net();if(user&&Object.keys(days).length)weather()});addEventListener("offline",net);net();
 
 if(ok){
   const app=initializeApp(CFG);
   auth=getAuth(app);
   db=initializeFirestore(app,{localCache:persistentLocalCache()});
-  onAuthStateChanged(auth,u=>{user=u;offs.forEach(f=>f());offs=[];days={};acts=[];fromCache=true;u?listen():null;draw()});
+  onAuthStateChanged(auth,u=>{user=u;offs.forEach(f=>f());offs=[];days={};acts=[];todo=[];wDone=false;fromCache=true;u?listen():null;draw()});
 }else draw();
 
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
