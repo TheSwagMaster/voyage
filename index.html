@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Voyage">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#FBF6EE">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Notre voyage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#FBF6EE;--ink:#4B3F3A;--mut:#9C8E85;--sky:#DCEAF3;--butter:#FBEFCB;--lav:#E8DFF3;--rose:#F7DFE4;--sage:#DDEBDD;--acc:#C9B6EA;--accd:#8F74C4;--line:#EFE6DA;color-scheme:light}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 Nunito,system-ui,sans-serif}
+body{padding:env(safe-area-inset-top) 0 calc(100px + env(safe-area-inset-bottom))}
+h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:600;margin:0}
+header{display:flex;justify-content:space-between;align-items:center;padding:18px 20px 6px}
+header small,.hero small{color:var(--mut);font-size:.82rem}
+h1{font-size:1.75rem}
+#out{border:0;background:var(--sage);border-radius:50%;width:38px;height:38px;font-size:1rem;color:var(--ink)}
+.strip{display:flex;gap:8px;overflow-x:auto;padding:12px 20px;scrollbar-width:none}
+.strip::-webkit-scrollbar{display:none}
+.chip{flex:none;width:54px;padding:9px 0 11px;border:2px solid transparent;border-radius:20px;display:flex;flex-direction:column;align-items:center;gap:1px;font:inherit;color:var(--ink);position:relative}
+.chip small{font-size:.7rem;color:var(--mut)}
+.chip b{font-size:1.2rem}
+.chip i{position:absolute;bottom:5px;width:5px;height:5px;border-radius:50%;background:var(--accd)}
+.chip.on{border-color:var(--ink);transform:translateY(-2px)}
+.sky{background:var(--sky)}.butter{background:var(--butter)}.lav{background:var(--lav)}.rose{background:var(--rose)}
+.hero{margin:6px 16px 14px;padding:18px;border-radius:28px}
+.hero h2{font-size:1.55rem;margin:2px 0 10px}
+.pill,.stay{display:block;margin:6px 0 0;padding:9px 13px;border-radius:16px;background:#ffffffb0;font-size:.88rem;color:var(--ink);text-decoration:none}
+.tl{list-style:none;margin:0;padding:0 16px;display:grid;gap:10px}
+.tl li{display:grid;grid-template-columns:28px 58px 1fr 34px;align-items:center;gap:6px;background:#FFFDF9;border:1px solid var(--line);border-radius:22px;padding:12px 10px;box-shadow:0 2px 10px #b9a58d1f}
+.ck{width:26px;height:26px;border-radius:50%;border:2px solid var(--acc);background:none;padding:0}
+.done .ck{background:var(--sage);border-color:#9CC49E}
+.done .b{opacity:.5;text-decoration:line-through}
+.t{font-size:.74rem;font-weight:700;color:var(--mut);text-align:center;line-height:1.15}
+.b b{display:block}.b span{display:block;font-size:.84rem;color:var(--mut)}
+.go{text-decoration:none;font-size:1.25rem;text-align:center}
+.empty{text-align:center;color:var(--mut);padding:26px 30px}
+.fab{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom));width:62px;height:62px;border-radius:50%;border:0;background:var(--acc);color:var(--ink);font-size:2rem;box-shadow:0 8px 22px #8f74c447}
+.ov{position:fixed;inset:0;background:#4b3f3a55;display:flex;align-items:flex-end;z-index:5}
+.sh{width:100%;background:var(--bg);border-radius:30px 30px 0 0;padding:22px 20px calc(20px + env(safe-area-inset-bottom));display:grid;gap:10px}
+input,select{font:inherit;color:var(--ink);padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:#fff;width:100%;min-width:0}
+.row{display:flex;gap:8px}
+.ok,.del,.btn{font:inherit;font-weight:700;border:0;border-radius:16px;padding:13px 16px;color:var(--ink)}
+.ok,.btn{background:var(--acc);flex:1}.del{background:var(--rose)}
+.login{padding:70px 24px;display:grid;gap:12px;text-align:center}
+.off{display:none;margin:4px 16px 0;padding:6px 12px;border-radius:14px;background:var(--butter);font-size:.8rem;text-align:center}
+body.offline .off{display:block}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="sheet"></div>
+<script type="module">
+/* ====== 1) COLLE ICI TA CONFIG FIREBASE ====== */
+const CFG={apiKey:"AIzaSyCWFLNAXvr72Lt4D1Nx2-xqiYyV_S3-mj8",authDomain:"voyage-usa-fd137.firebaseapp.com",projectId:"voyage-usa-fd137",appId:"1:561658984540:web:3b9714e32073fa7eca8e99"};
+/* ============================================= */
+
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {initializeFirestore,persistentLocalCache,collection,doc,setDoc,updateDoc,deleteDoc,onSnapshot,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const M="Matin",P="Après-midi";
+const SEED=[
+["2026-10-19","Paris → New York → Boston","Hotel 1868, 1868 Massachusetts Avenue, Porter Square, Cambridge, MA 02140","Bus NY → Boston · départ 13h15, arrivée 17h45",[["8h30","Décollage Paris","Arrivée à l'aéroport à 4h30"],["10h45","Atterrissage New York","AirTrain vers Hudson Yards ($11,50), environ 45 min"]]],
+["2026-10-20","Boston","Hotel 1868, 1868 Massachusetts Avenue, Porter Square, Cambridge, MA 02140","",[[M,"Visite des universités Harvard & MIT",""]]],
+["2026-10-21","Boston","Hotel 1868, 1868 Massachusetts Avenue, Porter Square, Cambridge, MA 02140","",[["9h30","Whale watching","9h30 à 14h00"],[P,"Quincy Market","À 5 min du port"],[P,"Freedom Trail","À 15 min du port"],[P,"Boston Common / Public Garden",""]]],
+["2026-10-22","Boston","Hotel 1868, 1868 Massachusetts Avenue, Porter Square, Cambridge, MA 02140","",[[M,"USS Constitution",""]]],
+["2026-10-23","Boston → Sturbridge","Scottish Inns Sturbridge, 142 Main Street, Sturbridge, MA 01566","Bus Boston → Sturbridge · départ 13h55, arrivée 15h35",[]],
+["2026-10-24","Sturbridge","Scottish Inns Sturbridge, 142 Main Street, Sturbridge, MA 01566","",[["","Mariage Addie",""]]],
+["2026-10-25","Sturbridge → New York","Union Square 11, 140 East 16th Street, Gramercy, New York, 10003","Bus Worcester → NY · départ 16h25, arrivée 21h25",[[M,"Brunch Addie",""]]],
+["2026-10-26","New York","Union Square 11, 140 East 16th Street, Gramercy, New York, 10003","",[[M,"Balade de l'appart jusqu'au port","1h"],["10h30","Départ Statue de la Liberté","Résa 11h, arriver 30 min avant · jusqu'à 16h"],["19h","New York Rangers vs Los Angeles Kings",""]]],
+["2026-10-27","New York","Union Square 11, 140 East 16th Street, Gramercy, New York, 10003","",[[M,"Métro","20 min"],["10h","9/11 Museum","Jusqu'à 12h"],[P,"Balade + manger Soho / Chelsea / High Line jusqu'au MoMA","2h au total"],["15h30","MoMA","15h30 à 17h30"],["19h","Chicago · Ambassador Theatre",""]]],
+["2026-10-28","New York","Union Square 11, 140 East 16th Street, Gramercy, New York, 10003","",[["11h","Empire State Building",""],["14h","Central Park",""],["15h","Wollman Rink · patinage",""],["21h","Empire State Building",""]]],
+["2026-10-29","New York","Union Square 11, 140 East 16th Street, Gramercy, New York, 10003","",[["10h30","American Museum of Natural History",""],["17h","Top of the Rock",""]]],
+["2026-10-30","New York","Union Square 11, 140 East 16th Street, Gramercy, New York, 10003","",[["16h30","Croisière coucher de soleil, Statue de la Liberté","Arriver 30 min avant 17h"]]],
+["2026-10-31","New York","Union Square 11, 140 East 16th Street, Gramercy, New York, 10003","",[[M,"Bibliothèque 5ème Avenue",""],[P,"Halloween",""]]],
+["2026-11-01","New York","","",[["","Marathon",""],["21h30","Décollage New York","Arrivée à l'aéroport à 17h30 · AirTrain vers JFK ($11,50), environ 1h30"]]],
+["2026-11-02","Paris","","",[["10h50","Atterrissage Paris CDG","RER B"]]]
+];
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const kind=c=>/Paris/.test(c)?"rose":/Sturbridge/.test(c)?"butter":/Boston/.test(c)?"sky":"lav";
+const where=c=>/Sturbridge/.test(c)?"Sturbridge MA":/Boston/.test(c)?"Boston":"New York";
+const map=q=>"https://maps.apple.com/?q="+encodeURIComponent(q);
+const ymd=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const dt=id=>new Date(id+"T12:00");
+const fmt=id=>dt(id).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+const tm=t=>{const x=/^(\d{1,2})h(\d{2})?$/.exec(t||"");return x?+x[1]*60+(+x[2]||0):null};
+
+const ok=!CFG.apiKey.startsWith("COLLE");
+let auth,db,user=null,days={},acts=[],sel=null,fromCache=true,err="",offs=[];
+
+function pick(){
+  if(sel&&days[sel])return;
+  const ids=Object.keys(days).sort();
+  sel=ids.includes(ymd(new Date()))?ymd(new Date()):ids[0]||null;
+}
+
+function draw(){
+  const A=$("#app");
+  if(!ok){A.innerHTML='<div class="login"><h1>Presque prêt</h1><p>Colle ta config Firebase en haut du fichier index.html.</p></div>';return}
+  if(!user){
+    A.innerHTML='<form class="login" id="lg"><h1>Notre voyage</h1><p>Connecte-toi pour retrouver le planning.</p><input type="email" name="e" placeholder="Email" required autocomplete="username"><input type="password" name="p" placeholder="Mot de passe" required autocomplete="current-password"><button class="btn">Se connecter</button><p id="msg"></p></form>';
+    return;
+  }
+  const head='<header><div><small>Boston, Sturbridge, New York</small><h1>Notre voyage</h1></div><button id="out" title="Se déconnecter">⎋</button></header><div class="off">Hors ligne : tes ajouts seront synchronisés au retour du réseau.</div>';
+  const ids=Object.keys(days).sort();
+  const banner=err?'<p class="empty">⚠️ '+esc(err)+'</p>':"";
+  if(!ids.length){
+    A.innerHTML=head+banner+(fromCache?'<p class="empty">Chargement…</p>':'<div class="login"><p>Ton planning est vide.</p><button class="btn" id="imp">Importer le planning</button></div>');
+    return;
+  }
+  const sx=$(".strip")?.scrollLeft,today=ymd(new Date()),d=days[sel];
+  const list=acts.filter(a=>a.date===sel).sort((a,b)=>(a.m??0)-(b.m??0));
+  const chips=ids.map(id=>'<button class="chip '+kind(days[id].city)+(id===sel?" on":"")+'" data-d="'+id+'"><small>'+dt(id).toLocaleDateString("fr-FR",{weekday:"short"})+'</small><b>'+dt(id).getDate()+'</b>'+(id===today?"<i></i>":"")+'</button>').join("");
+  const rows=list.map(a=>'<li class="'+(a.done?"done":"")+'"><button class="ck" data-k="'+a.id+'" aria-label="Fait"></button><div class="t">'+(esc(a.t)||"·")+'</div><div class="b" data-e="'+a.id+'"><b>'+esc(a.title)+'</b>'+(a.note?'<span>'+esc(a.note)+'</span>':"")+'</div><a class="go" href="'+map((a.place||a.title)+" "+where(d.city))+'" aria-label="Itinéraire">📍</a></li>').join("");
+  A.innerHTML=head+banner+'<nav class="strip">'+chips+'</nav><section class="hero '+kind(d.city)+'"><small>'+fmt(sel)+'</small><h2>'+esc(d.city)+'</h2>'+(d.transport?'<p class="pill">🚌 '+esc(d.transport)+'</p>':"")+(d.lodging?'<a class="stay" href="'+map(d.lodging)+'">🏡 '+esc(d.lodging)+'</a>':"")+'</section>'+(rows?'<ul class="tl">'+rows+'</ul>':'<p class="empty">Rien de prévu ce jour-là. Appuie sur + pour ajouter une activité.</p>')+'<button class="fab" id="add" aria-label="Ajouter une activité">+</button>';
+  const st=$(".strip");
+  if(sx!=null)st.scrollLeft=sx;else $(".chip.on")?.scrollIntoView({inline:"center",block:"nearest"});
+}
+
+function sheet(a){
+  const ids=Object.keys(days).sort(),x=tm(a?.t);
+  const tv=x!=null?String(Math.floor(x/60)).padStart(2,"0")+":"+String(x%60).padStart(2,"0"):"";
+  $("#sheet").innerHTML='<div class="ov" id="ov"><form class="sh" id="f"><h3>'+(a?"Modifier l'activité":"Nouvelle activité")+'</h3><input name="title" placeholder="Titre" required value="'+esc(a?.title)+'"><select name="date">'+ids.map(id=>'<option value="'+id+'"'+(id===(a?.date||sel)?" selected":"")+'>'+fmt(id)+'</option>').join("")+'</select><div class="row"><input type="time" name="time" value="'+tv+'"><input name="place" placeholder="Lieu (pour la carte)" value="'+esc(a?.place)+'"></div><input name="note" placeholder="Note ou lien" value="'+esc(a?.note)+'"><div class="row"><button class="ok">Enregistrer</button>'+(a?'<button type="button" class="del" id="del">Supprimer</button>':"")+'</div></form></div>';
+  const close=()=>$("#sheet").innerHTML="";
+  $("#ov").onclick=e=>{if(e.target.id==="ov")close()};
+  if(a)$("#del").onclick=()=>{if(confirm("Supprimer cette activité ?")){deleteDoc(doc(db,"acts",a.id));close()}};
+  $("#f").onsubmit=e=>{
+    e.preventDefault();
+    const v=Object.fromEntries(new FormData(e.target));
+    let t=a?.t||"",m=a?.m;
+    if(v.time){const[h,mi]=v.time.split(":");t=+h+"h"+(mi==="00"?"":mi);m=+h*60+ +mi}
+    else if(m==null){m=Math.max(480,...acts.filter(z=>z.date===v.date).map(z=>z.m??0))+1}
+    const data={title:v.title.trim(),date:v.date,t,m,place:v.place.trim(),note:v.note.trim(),done:a?.done||false};
+    if(a)setDoc(doc(db,"acts",a.id),data);else setDoc(doc(collection(db,"acts")),data);
+    sel=v.date;close();draw();
+  };
+}
+
+function seed(){
+  const b=writeBatch(db);
+  SEED.forEach(([date,city,lodging,transport,items])=>{
+    b.set(doc(db,"days",date),{city,lodging,transport});
+    let p=480;
+    items.forEach(([t,title,note])=>{const m=tm(t)??p+1;p=m;b.set(doc(collection(db,"acts")),{date,t,m,title,place:"",note,done:false})});
+  });
+  return b.commit();
+}
+
+function listen(){
+  const fail=e=>{err=e.code==="permission-denied"?"Accès refusé : vérifie les règles Firestore et ton compte.":e.message;draw()};
+  offs.push(onSnapshot(collection(db,"days"),s=>{days={};s.forEach(d=>days[d.id]=d.data());fromCache=s.metadata.fromCache;err="";pick();draw()},fail));
+  offs.push(onSnapshot(collection(db,"acts"),s=>{acts=s.docs.map(d=>({id:d.id,...d.data()}));draw()},fail));
+}
+
+$("#app").onclick=e=>{
+  const c=e.target.closest("[data-d],[data-k],[data-e],#add,#out,#imp");
+  if(!c)return;
+  if(c.dataset.d){sel=c.dataset.d;draw()}
+  else if(c.dataset.k){const a=acts.find(x=>x.id===c.dataset.k);updateDoc(doc(db,"acts",a.id),{done:!a.done})}
+  else if(c.dataset.e)sheet(acts.find(x=>x.id===c.dataset.e));
+  else if(c.id==="add")sheet(null);
+  else if(c.id==="out")signOut(auth);
+  else if(c.id==="imp"){c.disabled=true;seed().catch(er=>{err=er.message;draw()})}
+};
+$("#app").onsubmit=e=>{
+  e.preventDefault();
+  const f=e.target;
+  signInWithEmailAndPassword(auth,f.e.value.trim(),f.p.value).catch(()=>{$("#msg").textContent="Email ou mot de passe incorrect."});
+};
+
+const net=()=>document.body.classList.toggle("offline",!navigator.onLine);
+addEventListener("online",net);addEventListener("offline",net);net();
+
+if(ok){
+  const app=initializeApp(CFG);
+  auth=getAuth(app);
+  db=initializeFirestore(app,{localCache:persistentLocalCache()});
+  onAuthStateChanged(auth,u=>{user=u;offs.forEach(f=>f());offs=[];days={};acts=[];fromCache=true;u?listen():null;draw()});
+}else draw();
+
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+</script>
+</body>
+</html>
